@@ -1,3 +1,4 @@
+mod activation;
 mod imdb;
 mod nn;
 
