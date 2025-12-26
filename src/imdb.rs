@@ -1,7 +1,9 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
-pub fn load_bow(path: &str, vocab_size: usize) -> (Vec<Vec<f32>>, Vec<usize>) {
+pub const VOCAB_SIZE: usize = 89527;
+
+pub fn load_bow(path: &str) -> (Vec<Vec<f32>>, Vec<usize>) {
     let file = File::open(path).unwrap();
     let reader = BufReader::new(file);
 
@@ -10,7 +12,7 @@ pub fn load_bow(path: &str, vocab_size: usize) -> (Vec<Vec<f32>>, Vec<usize>) {
 
     for line in reader.lines() {
         let line = line.unwrap();
-        let mut vec = vec![0.0; vocab_size];
+        let mut vec = vec![0.0; VOCAB_SIZE];
         let mut tokens = line.split_whitespace();
 
         // 1つ目のトークンがラベル
