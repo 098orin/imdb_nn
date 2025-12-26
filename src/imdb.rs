@@ -1,33 +1,47 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
-pub const VOCAB_SIZE: usize = 89527;
+pub struct BoWDataset {
+    reader: BufReader<File>,
+    vocab_size: usize,
+}
 
-pub fn load_bow(path: &str) -> (Vec<Vec<f32>>, Vec<usize>) {
-    let file = File::open(path).unwrap();
-    let reader = BufReader::new(file);
-
-    let mut data = Vec::new();
-    let mut labels = Vec::new();
-
-    for line in reader.lines() {
-        let line = line.unwrap();
-        let mut vec = vec![0.0; VOCAB_SIZE];
-        let mut tokens = line.split_whitespace();
-
-        // 1つ目のトークンがラベル
-        let label: usize = tokens.next().unwrap().parse().unwrap();
-        labels.push(label);
-
-        for token in tokens {
-            let mut split = token.split(':');
-            let idx: usize = split.next().unwrap().parse().unwrap();
-            let count: f32 = split.next().unwrap().parse().unwrap();
-            vec[idx] = count;
-        }
-
-        data.push(vec);
+impl BoWDataset {
+    pub fn new(feat_file: &str, vocab_size: usize) -> Self {
+        let file = File::open(feat_file).unwrap();
+        let reader = BufReader::new(file);
+        Self { reader, vocab_size }
     }
+}
 
-    (data, labels)
+impl Iterator for BoWDataset {
+    type Item = (Vec<f32>, usize); // (BoW vector, label)
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut line = String::new();
+        loop {
+            line.clear();
+            let bytes = self.reader.read_line(&mut line).ok()?;
+            if bytes == 0 {
+                return None; // EOF
+            }
+
+            let mut tokens = line.split_whitespace();
+            if let Some(label_str) = tokens.next() {
+                let label: usize = label_str.parse().unwrap();
+                let mut bow = vec![0.0; self.vocab_size];
+
+                for tok in tokens {
+                    let mut split = tok.split(':');
+                    if let (Some(idx_str), Some(val_str)) = (split.next(), split.next()) {
+                        let idx: usize = idx_str.parse().unwrap();
+                        let val: f32 = val_str.parse().unwrap();
+                        bow[idx] = val;
+                    }
+                }
+
+                return Some((bow, label));
+            }
+        }
+    }
 }
