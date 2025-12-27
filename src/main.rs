@@ -38,7 +38,7 @@ fn main() {
 
     println!("Model initialized.");
 
-    let batch_size: usize = 32;
+    let batch_size: usize = 250;
     let train_epoch: usize = 5;
 
     let train_datasize: usize = DATASET_SIZE;
@@ -70,17 +70,15 @@ fn main() {
 
     println!("Evaluating on test set...");
 
-    let test_bow_dataset = BatchIter::new(test_bow_dataset, 1);
     let total = DATASET_SIZE;
 
     let bar = bar_maker(total.try_into().unwrap());
 
     let mut correct = 0;
-    for data in test_bow_dataset {
-        let (x, y) = &data[0];
-        let output = model.forward(x);
+    for (x, y) in test_bow_dataset {
+        let output = model.forward(&x);
         let predicted: bool = output[0] > output[1];
-        if predicted == (*y > 5) {
+        if predicted == (y > 5) {
             correct += 1;
         }
         bar.inc(1);
