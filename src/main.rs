@@ -45,7 +45,11 @@ fn main() {
 
     println!("batch_size: {}", batch_size);
 
-    let bar = bar_maker(((train_datasize / batch_size) * train_epoch).try_into().unwrap());
+    let bar = bar_maker(
+        ((train_datasize / batch_size) * train_epoch)
+            .try_into()
+            .unwrap(),
+    );
 
     for epoch in 0..train_epoch {
         let train_batch_iter = BatchIter::new(train_bow_dataset_maker(), batch_size);
@@ -55,10 +59,7 @@ fn main() {
         for data in train_batch_iter {
             let (data_batch, label_batch): (Vec<Vec<f32>>, Vec<usize>) =
                 data.iter().cloned().unzip();
-            let label_batch: Vec<usize> = label_batch
-                .iter()
-                .map(|&u| (u > 5) as usize )
-                .collect();
+            let label_batch: Vec<usize> = label_batch.iter().map(|&u| (u > 5) as usize).collect();
             model.train_batch(&data_batch, &label_batch, 0.01);
             bar.inc(1);
         }
