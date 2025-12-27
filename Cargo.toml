@@ -4,5 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+indicatif = "0.18.3"
 walkdir = "2.5.0"
 
