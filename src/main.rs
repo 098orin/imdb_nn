@@ -38,7 +38,7 @@ fn main() {
 
     println!("Model initialized.");
 
-    let batch_size: usize = 250;
+    let batch_size: usize = 64;
     let train_epoch: usize = 5;
 
     let train_datasize: usize = DATASET_SIZE;
