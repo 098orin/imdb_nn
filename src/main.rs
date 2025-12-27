@@ -9,7 +9,7 @@ use imdb::BoWDataset;
 use indicatif::{ProgressBar, ProgressStyle};
 
 const VOCAB_SIZE: usize = 89527;
-const TRAIN_HALF_SIZE: usize = 12500;
+const DATASET_SIZE: usize = 25000;
 
 fn main() {
     let bar_maker = |len| {
@@ -39,17 +39,16 @@ fn main() {
     println!("Model initialized.");
 
     let batch_size: usize = 32;
+    let train_epoch: usize = 5;
 
-    let train_datasize: usize = TRAIN_HALF_SIZE;
+    let train_datasize: usize = DATASET_SIZE;
 
     println!("batch_size: {}", batch_size);
 
-    let bar = bar_maker(((train_datasize / batch_size) * 3 * 2).try_into().unwrap());
+    let bar = bar_maker(((train_datasize / batch_size) * train_epoch).try_into().unwrap());
 
-    for epoch in 0..5 {
-        // 最初はposのみ
-        let train_batch_iter =
-            BatchIter::new(train_bow_dataset_maker(), batch_size).set_max_size(train_datasize);
+    for epoch in 0..train_epoch {
+        let train_batch_iter = BatchIter::new(train_bow_dataset_maker(), batch_size);
 
         bar.set_message(format!("Processing Epoch{} Positive.", epoch + 1));
 
@@ -58,23 +57,8 @@ fn main() {
                 data.iter().cloned().unzip();
             let label_batch: Vec<usize> = label_batch
                 .iter()
-                .map(|&u| if u > 5 { 0 } else { 1 })
+                .map(|&u| (u > 5) as usize )
                 .collect();
-            model.train_batch(&data_batch, &label_batch, 0.01);
-            bar.inc(1);
-        }
-
-        bar.set_message(format!("Processing Epoch{} Negative.", epoch + 1));
-
-        // skipして後半のnegへ
-        let mut train_batch_iter =
-            BatchIter::new(train_bow_dataset_maker(), batch_size).set_max_size(train_datasize);
-
-        train_batch_iter.take_skipping(TRAIN_HALF_SIZE);
-
-        for data in train_batch_iter {
-            let (data_batch, label_batch): (Vec<Vec<f32>>, Vec<usize>) =
-                data.iter().cloned().unzip();
             model.train_batch(&data_batch, &label_batch, 0.01);
             bar.inc(1);
         }
@@ -86,7 +70,7 @@ fn main() {
     println!("Evaluating on test set...");
 
     let test_bow_dataset = BatchIter::new(test_bow_dataset, 1);
-    let total = TRAIN_HALF_SIZE * 2;
+    let total = DATASET_SIZE;
 
     let bar = bar_maker(total.try_into().unwrap());
 
@@ -94,7 +78,7 @@ fn main() {
     for data in test_bow_dataset {
         let (x, y) = &data[0];
         let output = model.forward(x);
-        let predicted = output[0] > output[1];
+        let predicted: bool = output[0] > output[1];
         if predicted == (*y > 5) {
             correct += 1;
         }
