@@ -8,10 +8,7 @@ where
     I: Iterator,
 {
     pub fn new(iter: I, batch_size: usize) -> Self {
-        Self {
-            iter,
-            batch_size,
-        }
+        Self { iter, batch_size }
     }
 }
 
