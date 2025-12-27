@@ -36,10 +36,12 @@ impl Module for Linear {
         self.last_input = input.to_vec();
 
         let mut out = vec![0.0; self.out_size];
-        for (o, sum) in out.iter_mut().enumerate().take(self.out_size) {
-            for (i, &input_i) in input.iter().enumerate().take(self.in_size) {
-                *sum += self.w[o * self.in_size + i] * input_i;
+        for o in 0..self.out_size {
+            let mut sum = self.b[o];
+            for i in 0..self.in_size {
+                sum += self.w[o * self.in_size + i] * input[i];
             }
+            out[o] = sum;
         }
         out
     }
@@ -48,14 +50,14 @@ impl Module for Linear {
         // 次に流す勾配（dL/dinput）
         let mut grad_input = vec![0.0; self.in_size];
 
-        for (o, grad_o) in grad.iter().enumerate().take(self.out_size) {
-            for (i, grad_input_i) in grad_input.iter_mut().enumerate().take(self.in_size) {
+        for o in 0..self.out_size {
+            for i in 0..self.in_size {
                 let idx = o * self.in_size + i;
 
-                *grad_input_i += self.w[idx] * grad_o;
-                self.grad_w[idx] += grad_o * self.last_input[i];
+                grad_input[i] += self.w[idx] * grad[o];
+                self.grad_w[idx] += grad[o] * self.last_input[i];
             }
-            self.grad_b[o] += grad_o;
+            self.grad_b[o] += grad[o];
         }
 
         grad_input

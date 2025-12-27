@@ -20,9 +20,9 @@ impl Module for ReLU {
     }
 
     fn backward(&mut self, mut grad: Vec<f32>) -> Vec<f32> {
-        for (g, &out) in grad.iter_mut().zip(self.last_output.iter()) {
-            if out <= 0.0 {
-                *g = 0.0;
+        for i in 0..grad.len() {
+            if self.last_output[i] <= 0.0 {
+                grad[i] = 0.0;
             }
         }
         grad
