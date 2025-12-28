@@ -1,6 +1,6 @@
 # IMDb Sentiment Analysis (Rust / 自作NN)
 
-このリポジトリは、**Rustでニューラルネットワークを一から実装し、IMDb Large Movie Review Dataset を用いて感情分析（2値分類）を行う学習用プロジェクト**です。
+このリポジトリは、Rustでニューラルネットワークを一から実装し、IMDb Large Movie Review Dataset を用いて感情分析（2値分類）を行う学習用プロジェクトです。
 
 > [!NOTE]
 > `.fear` ファィルの読み込みを実装しているので、 IMDb Large Movie Review Dataset でなくとも学習が行えます。
@@ -40,15 +40,20 @@ year      = {2011}
 
 ```
 
+## 実行
+
+```bash
+cargo run --release
+```
+
 ## 実装内容
 
-### モデル構成（例）
+### モデル構成
 
 - Bag of Words 入力
 - Linear
 - ReLU
 - Linear
-- Softmax
 - Cross Entropy Loss
 
 ※ MNIST 用に作成した NN 構造を流用し、入力のみ BoW に対応
