@@ -50,12 +50,6 @@ impl Buffer for SparseVec {
     }
 }
 
-impl Buffer for () {
-    fn zeros_like(&self) -> Self {
-        ()
-    }
-}
-
 pub struct End<T>(std::marker::PhantomData<T>);
 
 impl<T> End<T> {
