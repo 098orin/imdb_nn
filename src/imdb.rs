@@ -1,6 +1,8 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
 
+pub type SparseVec = Vec<(usize, f32)>; // (index, value)
+
 pub struct BoWDataset {
     reader: BufReader<File>,
     offsets: Vec<u64>,
@@ -37,7 +39,7 @@ impl BoWDataset {
         self.offsets.len()
     }
 
-    fn read_at(&mut self, idx: usize) -> (Vec<f32>, usize) {
+    fn read_at(&mut self, idx: usize) -> (SparseVec, usize) {
         self.reader
             .seek(SeekFrom::Start(self.offsets[idx]))
             .unwrap();
@@ -48,12 +50,12 @@ impl BoWDataset {
         let mut tokens = line.split_whitespace();
         let label: usize = tokens.next().unwrap().parse().unwrap();
 
-        let mut bow = vec![0.0; self.vocab_size];
+        let mut bow = vec![];
         for tok in tokens {
             let mut sp = tok.split(':');
             let i: usize = sp.next().unwrap().parse().unwrap();
             let v: f32 = sp.next().unwrap().parse().unwrap();
-            bow[i] = v;
+            bow.push((i, v));
         }
 
         (bow, label)
@@ -92,7 +94,7 @@ impl<'a> DataLoader<'a> {
 }
 
 impl<'a> Iterator for DataLoader<'a> {
-    type Item = (Vec<Vec<f32>>, Vec<usize>);
+    type Item = (Vec<SparseVec>, Vec<usize>);
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.cursor >= self.indices.len() {
