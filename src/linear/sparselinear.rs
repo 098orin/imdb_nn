@@ -9,6 +9,21 @@ pub struct SparseLinear {
     out_size: usize,
 }
 
+impl SparseLinear {
+    pub fn new(in_size: usize, out_size: usize) -> Self {
+        Self {
+            w: (0..in_size * out_size)
+                .map(|_| super::init_weight())
+                .collect(),
+            b: vec![0.0; out_size],
+            grad_w: vec![0.0; in_size * out_size],
+            grad_b: vec![0.0; out_size],
+            in_size,
+            out_size,
+        }
+    }
+}
+
 impl Module for SparseLinear {
     type Input = SparseVec;
     type Output = Dense;
