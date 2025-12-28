@@ -28,6 +28,10 @@ impl Module for Linear {
     type Input = Dense;
     type Output = Dense;
 
+    fn new_output(&self) -> Dense {
+        vec![0.0; self.out_size]
+    }
+
     fn forward(&mut self, input: &Dense, output: &mut Dense) {
         for o in 0..self.out_size {
             let mut sum = self.b[o];

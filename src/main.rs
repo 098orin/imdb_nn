@@ -30,7 +30,7 @@ fn main() {
 
     let mut model = chain!(
         linear::sparselinear::SparseLinear::new(VOCAB_SIZE, 128),
-        activation::relu::ReLU,
+        activation::relu::ReLU::new(128),
         linear::linear::Linear::new(128, 2),
     );
 
@@ -75,7 +75,7 @@ fn main() {
 
     for (x, y) in loader {
         let (x, y) = (x[0].clone(), y[0]);
-        let mut output = Vec::new();
+        let mut output = model.new_output();
         model.forward(&x, &mut output);
         let predicted = (output[0] < output[1]) as usize;
 

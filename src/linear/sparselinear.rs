@@ -28,6 +28,10 @@ impl Module for SparseLinear {
     type Input = SparseVec;
     type Output = Dense;
 
+    fn new_output(&self) -> Dense {
+        vec![0.0; self.out_size]
+    }
+
     fn forward(&mut self, input: &SparseVec, output: &mut Dense) {
         output.fill(0.0);
 

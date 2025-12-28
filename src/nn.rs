@@ -30,20 +30,17 @@ pub trait Module {
         grad_input: &mut Self::Input,
     );
     fn step(&mut self, lr: f32, batch_size: usize);
+
+    fn new_output(&self) -> Self::Output;
 }
 
 pub trait Buffer: Sized + Clone {
     fn zeros_like(&self) -> Self;
-    fn zeros_like_input<I>(input: &I) -> Self;
 }
 
 impl Buffer for Dense {
     fn zeros_like(&self) -> Self {
         vec![0.0; self.len()]
-    }
-
-    fn zeros_like_input<I>(_input: &I) -> Self {
-        vec![]
     }
 }
 
@@ -51,17 +48,10 @@ impl Buffer for SparseVec {
     fn zeros_like(&self) -> Self {
         Vec::new()
     }
-
-    fn zeros_like_input<I>(_input: &I) -> Self {
-        Vec::new()
-    }
 }
 
 impl Buffer for () {
     fn zeros_like(&self) -> Self {
-        ()
-    }
-    fn zeros_like_input<I>(_input: &I) -> Self {
         ()
     }
 }
@@ -77,6 +67,10 @@ impl<T> End<T> {
 impl<T: Buffer> Module for End<T> {
     type Input = T;
     type Output = T;
+
+    fn new_output(&self) -> T {
+        panic!("End::new_output should never be called")
+    }
 
     fn forward(&mut self, input: &T, output: &mut T) {
         *output = input.clone();
@@ -102,8 +96,12 @@ where
     type Input = M::Input;
     type Output = N::Output;
 
+    fn new_output(&self) -> Self::Output {
+        self.tail.new_output()
+    }
+
     fn forward(&mut self, input: &Self::Input, output: &mut Self::Output) {
-        let mut mid = M::Output::zeros_like_input(input);
+        let mut mid = self.head.new_output();
         self.head.forward(input, &mut mid);
         self.tail.forward(&mid, output);
     }
@@ -114,7 +112,7 @@ where
         input: &Self::Input,
         grad_input: &mut Self::Input,
     ) {
-        let mut mid = M::Output::zeros_like_input(input);
+        let mut mid = self.head.new_output();
         let mut grad_mid = mid.zeros_like();
 
         self.head.forward(input, &mut mid);
@@ -143,7 +141,7 @@ where
 
         for (x, &y) in xs.iter().zip(ys.iter()) {
             // forward
-            let mut y_pred = <Self as Module>::Output::zeros_like_input(x);
+            let mut y_pred = self.new_output();
             self.forward(x, &mut y_pred);
 
             // loss backward
