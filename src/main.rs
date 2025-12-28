@@ -1,5 +1,6 @@
 mod activation;
 mod imdb;
+mod linear;
 mod loss;
 mod nn;
 
@@ -27,9 +28,9 @@ fn main() {
     let mut test_bow_dataset =
         BoWDataset::new("aclImdb_v1/aclImdb/test/labeledBow.feat", VOCAB_SIZE);
 
-    let layer1_linear = Box::new(nn::Linear::new(VOCAB_SIZE, 128));
+    let layer1_linear = Box::new(linear::linear::Linear::new(VOCAB_SIZE, 128));
     let layer1_relu = Box::new(activation::relu::ReLU::new(128));
-    let layer2_linear = Box::new(nn::Linear::new(128, 2));
+    let layer2_linear = Box::new(linear::linear::Linear::new(128, 2));
 
     let mut model = nn::Model::new(vec![layer1_linear, layer1_relu, layer2_linear]);
 
