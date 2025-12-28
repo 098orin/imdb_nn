@@ -37,7 +37,7 @@ fn main() {
     println!("Model initialized.");
 
     let batch_size: usize = 128;
-    let train_epoch: usize = 20;
+    let train_epoch: usize = 40;
 
     println!("batch_size: {}", batch_size);
 
@@ -52,7 +52,7 @@ fn main() {
     for epoch in 0..train_epoch {
         let mut dataset = train_bow_dataset_maker();
 
-        let loader = DataLoader::new(&mut dataset, batch_size, (epoch + DATASET_SIZE) as u64);
+        let loader = DataLoader::new(&mut dataset, batch_size, epoch as u64);
 
         bar.set_message(format!("Epoch {}", epoch + 1));
 
