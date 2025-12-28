@@ -23,10 +23,8 @@ fn main() {
             )
     };
 
-    let train_bow_dataset_maker =
-        || BoWDataset::new("aclImdb_v1/aclImdb/train/labeledBow.feat", VOCAB_SIZE);
-    let mut test_bow_dataset =
-        BoWDataset::new("aclImdb_v1/aclImdb/test/labeledBow.feat", VOCAB_SIZE);
+    let train_bow_dataset_maker = || BoWDataset::new("aclImdb_v1/aclImdb/train/labeledBow.feat");
+    let mut test_bow_dataset = BoWDataset::new("aclImdb_v1/aclImdb/test/labeledBow.feat");
 
     let layer1_linear = Box::new(linear::linear::Linear::new(VOCAB_SIZE, 128));
     let layer1_relu = Box::new(activation::relu::ReLU::new(128));
