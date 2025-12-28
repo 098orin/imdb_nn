@@ -3,7 +3,7 @@ macro_rules! chain {
     ($last:expr $(,)?) => {
         $crate::nn::Chain {
             head: $last,
-            tail: $crate::nn::End,
+            tail: $crate::nn::End::<crate::nn::Dense>::new(),
         }
     };
 
@@ -32,7 +32,7 @@ pub trait Module {
     fn step(&mut self, lr: f32, batch_size: usize);
 }
 
-pub trait Buffer: Sized {
+pub trait Buffer: Sized + Clone {
     fn zeros_like(&self) -> Self;
     fn zeros_like_input<I>(input: &I) -> Self;
 }
@@ -66,14 +66,26 @@ impl Buffer for () {
     }
 }
 
-pub struct End;
+pub struct End<T>(std::marker::PhantomData<T>);
 
-impl Module for End {
-    type Input = ();
-    type Output = ();
+impl<T> End<T> {
+    pub fn new() -> Self {
+        End(std::marker::PhantomData)
+    }
+}
 
-    fn forward(&mut self, _: &(), _: &mut ()) {}
-    fn backward(&mut self, _: &(), _: &(), _: &mut ()) {}
+impl<T: Buffer> Module for End<T> {
+    type Input = T;
+    type Output = T;
+
+    fn forward(&mut self, input: &T, output: &mut T) {
+        *output = input.clone();
+    }
+
+    fn backward(&mut self, grad_output: &T, _input: &T, grad_input: &mut T) {
+        *grad_input = grad_output.clone();
+    }
+
     fn step(&mut self, _: f32, _: usize) {}
 }
 
