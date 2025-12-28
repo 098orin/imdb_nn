@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
 
-pub type SparseVec = Vec<(usize, f32)>; // (index, value)
+use crate::nn::SparseVec;
 
 pub struct BoWDataset {
     reader: BufReader<File>,

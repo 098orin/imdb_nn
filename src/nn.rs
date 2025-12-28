@@ -1,8 +1,98 @@
+pub type Dense = Vec<f32>;
+pub type SparseVec = Vec<(usize, f32)>; // (index, value)
+
 pub trait Module {
-    fn forward(&mut self, input: &[f32], output: &mut [f32]);
-    fn backward(&mut self, grad_output: &[f32], input: &[f32], grad_input: &mut [f32]);
+    type Input: Buffer;
+    type Output: Buffer;
+
+    fn forward(&mut self, input: &Self::Input, output: &mut Self::Output);
+    fn backward(
+        &mut self,
+        grad_output: &Self::Output,
+        input: &Self::Input,
+        grad_input: &mut Self::Input,
+    );
     fn step(&mut self, lr: f32, batch_size: usize);
-    fn output_size(&self) -> usize;
+}
+
+pub trait Buffer: Sized {
+    fn zeros_like(&self) -> Self;
+    fn zeros_like_input<I>(input: &I) -> Self;
+}
+
+impl Buffer for Dense {
+    fn zeros_like(&self) -> Self {
+        vec![0.0; self.len()]
+    }
+
+    fn zeros_like_input<I>(_input: &I) -> Self {
+        vec![]
+    }
+}
+
+impl Buffer for SparseVec {
+    fn zeros_like(&self) -> Self {
+        Vec::new()
+    }
+
+    fn zeros_like_input<I>(_input: &I) -> Self {
+        Vec::new()
+    }
+}
+
+impl Buffer for () {
+    fn zeros_like(&self) -> Self { () }
+    fn zeros_like_input<I>(_input: &I) -> Self { () }
+}
+
+pub struct End;
+
+impl Module for End {
+    type Input = ();
+    type Output = ();
+
+    fn forward(&mut self, _: &(), _: &mut ()) {}
+    fn backward(&mut self, _: &(), _: &(), _: &mut ()) {}
+    fn step(&mut self, _: f32, _: usize) {}
+}
+
+pub struct Chain<M, N> {
+    pub head: M,
+    pub tail: N,
+}
+
+impl<M, N> Module for Chain<M, N>
+where
+    M: Module,
+    N: Module<Input = M::Output>,
+{
+    type Input = M::Input;
+    type Output = N::Output;
+
+    fn forward(&mut self, input: &Self::Input, output: &mut Self::Output) {
+        let mut mid = M::Output::zeros_like_input(input);
+        self.head.forward(input, &mut mid);
+        self.tail.forward(&mid, output);
+    }
+
+    fn backward(
+        &mut self,
+        grad_output: &Self::Output,
+        input: &Self::Input,
+        grad_input: &mut Self::Input,
+    ) {
+        let mut mid = M::Output::zeros_like_input(input);
+        let mut grad_mid = mid.zeros_like();
+
+        self.head.forward(input, &mut mid);
+        self.tail.backward(grad_output, &mid, &mut grad_mid);
+        self.head.backward(&grad_mid, input, grad_input);
+    }
+
+    fn step(&mut self, lr: f32, batch: usize) {
+        self.head.step(lr, batch);
+        self.tail.step(lr, batch);
+    }
 }
 
 #[allow(dead_code)]
@@ -12,94 +102,4 @@ pub trait Loss {
 
     /// ∂L/∂prediction を計算（逆伝播の起点）
     fn backward(&mut self, prediction: &[f32], target: usize, grad_prediction: &mut [f32]);
-}
-
-pub struct Model {
-    layers: Vec<Box<dyn Module>>,
-}
-
-pub struct ModelBuffers {
-    pub activations: Vec<Vec<f32>>,
-    pub gradients: Vec<Vec<f32>>,
-}
-
-impl Model {
-    pub fn new(layers: Vec<Box<dyn Module>>) -> Self {
-        Self { layers }
-    }
-
-    pub fn forward(&mut self, input: &[f32], buffers: &mut [Vec<f32>]) {
-        buffers[0].copy_from_slice(input);
-
-        for i in 0..self.layers.len() {
-            let (inp, out) = buffers.split_at_mut(i + 1);
-            self.layers[i].forward(&inp[i], &mut out[0]);
-        }
-    }
-
-    pub fn train_batch(
-        &mut self,
-        batch_x: &[Vec<f32>],
-        batch_y: &[usize],
-        loss: &mut dyn Loss,
-        lr: f32,
-    ) {
-        let batch_size = batch_x.len();
-
-        let mut buffers = self.create_buffers(batch_x[0].len());
-
-        for (x, &y) in batch_x.iter().zip(batch_y.iter()) {
-            // forward
-            self.forward(x, &mut buffers.activations);
-
-            // loss backward
-            loss.backward(
-                buffers.activations.last().unwrap(),
-                y,
-                buffers.gradients.last_mut().unwrap(),
-            );
-
-            // backward
-            self.backward(&buffers.activations, &mut buffers.gradients);
-        }
-
-        self.step(lr, batch_size);
-    }
-
-    pub fn backward(&mut self, buffers: &[Vec<f32>], grad_buffers: &mut [Vec<f32>]) {
-        for i in (0..self.layers.len()).rev() {
-            let (left, right) = grad_buffers.split_at_mut(i + 1);
-            let grad_input = &mut left[i];
-            let grad_output = &right[0];
-
-            self.layers[i].backward(grad_output, &buffers[i], grad_input);
-        }
-    }
-
-    pub fn step(&mut self, lr: f32, batch_size: usize) {
-        for layer in &mut self.layers {
-            layer.step(lr, batch_size);
-        }
-    }
-
-    pub fn create_buffers(&self, input_size: usize) -> ModelBuffers {
-        let mut activations = Vec::with_capacity(self.layers.len() + 1);
-        let mut gradients = Vec::with_capacity(self.layers.len() + 1);
-
-        // input
-        activations.push(vec![0.0; input_size]);
-        gradients.push(vec![0.0; input_size]);
-
-        // 各 layer の出力
-        for layer in &self.layers {
-            let size = layer.output_size();
-            activations.push(vec![0.0; size]);
-            gradients.push(vec![0.0; size]);
-        }
-
-        ModelBuffers {
-            activations,
-            gradients,
-        }
-    }
 }

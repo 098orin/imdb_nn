@@ -1,4 +1,5 @@
 pub mod linear;
+pub mod sparselinear;
 
 pub(crate) fn init_weight() -> f32 {
     // 簡易擬似乱数
