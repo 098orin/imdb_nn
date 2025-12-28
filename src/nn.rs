@@ -31,7 +31,7 @@ pub trait Module {
     );
     fn step(&mut self, lr: f32, batch_size: usize);
 
-    fn new_output(&self) -> Self::Output;
+    fn new_output(&self, input: &Self::Input) -> Self::Output;
 }
 
 pub trait Buffer: Sized + Clone {
@@ -68,8 +68,8 @@ impl<T: Buffer> Module for End<T> {
     type Input = T;
     type Output = T;
 
-    fn new_output(&self) -> T {
-        panic!("End::new_output should never be called")
+    fn new_output(&self, input: &T) -> T {
+        input.clone()
     }
 
     fn forward(&mut self, input: &T, output: &mut T) {
@@ -96,12 +96,13 @@ where
     type Input = M::Input;
     type Output = N::Output;
 
-    fn new_output(&self) -> Self::Output {
-        self.tail.new_output()
+    fn new_output(&self, input: &Self::Input) -> Self::Output {
+        let mid = self.head.new_output(input);
+        self.tail.new_output(&mid)
     }
 
     fn forward(&mut self, input: &Self::Input, output: &mut Self::Output) {
-        let mut mid = self.head.new_output();
+        let mut mid = self.head.new_output(input);
         self.head.forward(input, &mut mid);
         self.tail.forward(&mid, output);
     }
@@ -112,7 +113,7 @@ where
         input: &Self::Input,
         grad_input: &mut Self::Input,
     ) {
-        let mut mid = self.head.new_output();
+        let mut mid = self.head.new_output(input);
         let mut grad_mid = mid.zeros_like();
 
         self.head.forward(input, &mut mid);
@@ -141,7 +142,7 @@ where
 
         for (x, &y) in xs.iter().zip(ys.iter()) {
             // forward
-            let mut y_pred = self.new_output();
+            let mut y_pred = self.new_output(x);
             self.forward(x, &mut y_pred);
 
             // loss backward

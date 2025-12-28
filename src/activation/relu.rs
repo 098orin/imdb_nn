@@ -14,7 +14,8 @@ impl Module for ReLU {
     type Input = Dense;
     type Output = Dense;
 
-    fn new_output(&self) -> Dense {
+    fn new_output(&self, input: &Dense) -> Dense {
+        debug_assert_eq!(input.len(), self.size);
         vec![0.0; self.size]
     }
 

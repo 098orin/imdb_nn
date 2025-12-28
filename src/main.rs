@@ -75,7 +75,7 @@ fn main() {
 
     for (x, y) in loader {
         let (x, y) = (x[0].clone(), y[0]);
-        let mut output = model.new_output();
+        let mut output = model.new_output(&x);
         model.forward(&x, &mut output);
         let predicted = (output[0] < output[1]) as usize;
 

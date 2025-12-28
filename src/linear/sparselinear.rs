@@ -28,7 +28,8 @@ impl Module for SparseLinear {
     type Input = SparseVec;
     type Output = Dense;
 
-    fn new_output(&self) -> Dense {
+    fn new_output(&self, input: &SparseVec) -> Dense {
+        debug_assert_eq!(input.len(), self.in_size);
         vec![0.0; self.out_size]
     }
 
