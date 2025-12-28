@@ -76,7 +76,7 @@ fn main() {
         let (x, y) = (x[0].clone(), y[0]);
         let mut output_buffer = model.create_buffers(VOCAB_SIZE);
         model.forward(&x, &mut output_buffer.activations);
-        let output = &output_buffer.activations[0];
+        let output = output_buffer.activations.last().unwrap();
         let predicted = (output[0] < output[1]) as usize;
 
         if predicted == y {
