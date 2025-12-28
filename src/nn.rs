@@ -1,3 +1,20 @@
+#[macro_export]
+macro_rules! chain {
+    ($last:expr $(,)?) => {
+        $crate::nn::Chain {
+            head: $last,
+            tail: $crate::nn::End,
+        }
+    };
+
+    ($head:expr, $($rest:expr),+ $(,)?) => {
+        $crate::nn::Chain {
+            head: $head,
+            tail: chain!($($rest),+),
+        }
+    };
+}
+
 pub type Dense = Vec<f32>;
 pub type SparseVec = Vec<(usize, f32)>; // (index, value)
 
@@ -41,8 +58,12 @@ impl Buffer for SparseVec {
 }
 
 impl Buffer for () {
-    fn zeros_like(&self) -> Self { () }
-    fn zeros_like_input<I>(_input: &I) -> Self { () }
+    fn zeros_like(&self) -> Self {
+        ()
+    }
+    fn zeros_like_input<I>(_input: &I) -> Self {
+        ()
+    }
 }
 
 pub struct End;
