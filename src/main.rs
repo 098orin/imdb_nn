@@ -8,6 +8,8 @@ use imdb::{BoWDataset, DataLoader};
 
 use indicatif::{ProgressBar, ProgressStyle};
 
+use crate::nn::Module;
+
 const VOCAB_SIZE: usize = 89527;
 const DATASET_SIZE: usize = 25000;
 
@@ -26,11 +28,11 @@ fn main() {
     let train_bow_dataset_maker = || BoWDataset::new("aclImdb_v1/aclImdb/train/labeledBow.feat");
     let mut test_bow_dataset = BoWDataset::new("aclImdb_v1/aclImdb/test/labeledBow.feat");
 
-    let layer1_linear = Box::new(linear::linear::Linear::new(VOCAB_SIZE, 128));
-    let layer1_relu = Box::new(activation::relu::ReLU::new(128));
-    let layer2_linear = Box::new(linear::linear::Linear::new(128, 2));
-
-    let mut model = nn::Model::new(vec![layer1_linear, layer1_relu, layer2_linear]);
+    let mut model = chain!(
+        linear::sparselinear::SparseLinear::new(VOCAB_SIZE, 128),
+        activation::relu::ReLU,
+        linear::linear::Linear::new(128, 2),
+    );
 
     println!("Model initialized.");
 
@@ -73,9 +75,8 @@ fn main() {
 
     for (x, y) in loader {
         let (x, y) = (x[0].clone(), y[0]);
-        let mut output_buffer = model.create_buffers(VOCAB_SIZE);
-        model.forward(&x, &mut output_buffer.activations);
-        let output = output_buffer.activations.last().unwrap();
+        let mut output = Vec::new();
+        model.forward(&x, &mut output);
         let predicted = (output[0] < output[1]) as usize;
 
         if predicted == y {
