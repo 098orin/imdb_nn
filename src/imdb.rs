@@ -6,11 +6,10 @@ use crate::nn::SparseVec;
 pub struct BoWDataset {
     reader: BufReader<File>,
     offsets: Vec<u64>,
-    vocab_size: usize,
 }
 
 impl BoWDataset {
-    pub fn new(path: &str, vocab_size: usize) -> Self {
+    pub fn new(path: &str) -> Self {
         let file = File::open(path).unwrap();
         let mut reader = BufReader::new(file);
 
@@ -28,11 +27,7 @@ impl BoWDataset {
 
         reader.seek(SeekFrom::Start(0)).unwrap();
 
-        Self {
-            reader,
-            offsets,
-            vocab_size,
-        }
+        Self { reader, offsets }
     }
 
     pub fn len(&self) -> usize {
