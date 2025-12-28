@@ -1,30 +1,31 @@
 use crate::nn::Module;
 
 pub struct ReLU {
-    last_output: Vec<f32>,
+    size: usize,
 }
 
 impl ReLU {
-    pub fn new() -> Self {
-        Self {
-            last_output: Vec::new(),
-        }
+    pub fn new(size: usize) -> Self {
+        Self { size }
     }
 }
 
 impl Module for ReLU {
-    fn forward(&mut self, x: Vec<f32>) -> Vec<f32> {
-        let y: Vec<f32> = x.iter().map(|v| v.max(0.0)).collect();
-        self.last_output = y.clone();
-        y
+    fn forward(&mut self, input: &[f32], output: &mut [f32]) {
+        for i in 0..self.size {
+            output[i] = input[i].max(0.0);
+        }
     }
 
-    fn backward(&mut self, mut grad: Vec<f32>) -> Vec<f32> {
-        for i in 0..grad.len() {
-            if self.last_output[i] <= 0.0 {
-                grad[i] = 0.0;
-            }
+    fn backward(&mut self, grad_output: &[f32], input: &[f32], grad_input: &mut [f32]) {
+        for i in 0..self.size {
+            grad_input[i] = if input[i] > 0.0 { grad_output[i] } else { 0.0 };
         }
-        grad
+    }
+
+    fn step(&mut self, _lr: f32, _batch_size: usize) {}
+
+    fn output_size(&self) -> usize {
+        self.size
     }
 }

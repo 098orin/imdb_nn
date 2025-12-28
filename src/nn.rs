@@ -1,7 +1,17 @@
 pub trait Module {
-    fn forward(&mut self, x: Vec<f32>) -> Vec<f32>;
-    fn backward(&mut self, grad: Vec<f32>) -> Vec<f32>;
-    fn step(&mut self, _lr: f32, _batch_size: usize) {}
+    fn forward(&mut self, input: &[f32], output: &mut [f32]);
+    fn backward(&mut self, grad_output: &[f32], input: &[f32], grad_input: &mut [f32]);
+    fn step(&mut self, lr: f32, batch_size: usize);
+    fn output_size(&self) -> usize;
+}
+
+#[allow(dead_code)]
+pub trait Loss {
+    /// 損失値を計算（評価用）
+    fn forward(&mut self, prediction: &[f32], target: usize, loss: &mut f32);
+
+    /// ∂L/∂prediction を計算（逆伝播の起点）
+    fn backward(&mut self, prediction: &[f32], target: usize, grad_prediction: &mut [f32]);
 }
 
 pub struct Linear {
@@ -13,8 +23,6 @@ pub struct Linear {
 
     in_size: usize,
     out_size: usize,
-
-    last_input: Vec<f32>,
 }
 
 impl Linear {
@@ -26,41 +34,32 @@ impl Linear {
             grad_b: vec![0.0; out_size],
             in_size,
             out_size,
-            last_input: Vec::new(),
         }
     }
 }
 
 impl Module for Linear {
-    fn forward(&mut self, input: Vec<f32>) -> Vec<f32> {
-        self.last_input = input.to_vec();
-
-        let mut out = vec![0.0; self.out_size];
+    fn forward(&mut self, input: &[f32], output: &mut [f32]) {
         for o in 0..self.out_size {
             let mut sum = self.b[o];
             for i in 0..self.in_size {
                 sum += self.w[o * self.in_size + i] * input[i];
             }
-            out[o] = sum;
+            output[o] = sum;
         }
-        out
     }
 
-    fn backward(&mut self, grad: Vec<f32>) -> Vec<f32> {
-        // 次に流す勾配（dL/dinput）
-        let mut grad_input = vec![0.0; self.in_size];
+    fn backward(&mut self, grad_output: &[f32], input: &[f32], grad_input: &mut [f32]) {
+        grad_input.fill(0.0);
 
         for o in 0..self.out_size {
             for i in 0..self.in_size {
                 let idx = o * self.in_size + i;
-
-                grad_input[i] += self.w[idx] * grad[o];
-                self.grad_w[idx] += grad[o] * self.last_input[i];
+                self.grad_w[idx] += grad_output[o] * input[i];
+                grad_input[i] += self.w[idx] * grad_output[o];
             }
-            self.grad_b[o] += grad[o];
+            self.grad_b[o] += grad_output[o];
         }
-
-        grad_input
     }
 
     fn step(&mut self, lr: f32, batch_size: usize) {
@@ -76,10 +75,19 @@ impl Module for Linear {
             self.grad_b[i] = 0.0;
         }
     }
+
+    fn output_size(&self) -> usize {
+        self.out_size
+    }
 }
 
 pub struct Model {
     layers: Vec<Box<dyn Module>>,
+}
+
+pub struct ModelBuffers {
+    pub activations: Vec<Vec<f32>>,
+    pub gradients: Vec<Vec<f32>>,
 }
 
 impl Model {
@@ -87,34 +95,79 @@ impl Model {
         Self { layers }
     }
 
-    pub fn forward(&mut self, input: &[f32]) -> Vec<f32> {
-        let mut x = input.to_vec();
-        for layer in &mut self.layers {
-            x = layer.forward(x);
+    pub fn forward(&mut self, input: &[f32], buffers: &mut [Vec<f32>]) {
+        buffers[0].copy_from_slice(input);
+
+        for i in 0..self.layers.len() {
+            let (inp, out) = buffers.split_at_mut(i + 1);
+            self.layers[i].forward(&inp[i], &mut out[0]);
         }
-        x
+    }
+
+    pub fn train_batch(
+        &mut self,
+        batch_x: &[Vec<f32>],
+        batch_y: &[usize],
+        loss: &mut dyn Loss,
+        lr: f32,
+    ) {
+        let batch_size = batch_x.len();
+
+        let mut buffers = self.create_buffers(batch_x[0].len());
+
+        for (x, &y) in batch_x.iter().zip(batch_y.iter()) {
+            // forward
+            self.forward(x, &mut buffers.activations);
+
+            // loss backward
+            loss.backward(
+                buffers.activations.last().unwrap(),
+                y,
+                buffers.gradients.last_mut().unwrap(),
+            );
+
+            // backward
+            self.backward(&buffers.activations, &mut buffers.gradients);
+        }
+
+        self.step(lr, batch_size);
+    }
+
+    pub fn backward(&mut self, buffers: &[Vec<f32>], grad_buffers: &mut [Vec<f32>]) {
+        for i in (0..self.layers.len()).rev() {
+            let (left, right) = grad_buffers.split_at_mut(i + 1);
+            let grad_input = &mut left[i];
+            let grad_output = &right[0];
+
+            self.layers[i].backward(grad_output, &buffers[i], grad_input);
+        }
     }
 
     pub fn step(&mut self, lr: f32, batch_size: usize) {
-        for layer in self.layers.iter_mut() {
+        for layer in &mut self.layers {
             layer.step(lr, batch_size);
         }
     }
 
-    pub fn train_batch(&mut self, batch_x: &[Vec<f32>], batch_y: &[usize], lr: f32) {
-        let batch_size = batch_x.len();
+    pub fn create_buffers(&self, input_size: usize) -> ModelBuffers {
+        let mut activations = Vec::with_capacity(self.layers.len() + 1);
+        let mut gradients = Vec::with_capacity(self.layers.len() + 1);
 
-        for (x, &y) in batch_x.iter().zip(batch_y.iter()) {
-            let out = self.forward(x);
-            let mut grad = out;
-            grad[y] -= 1.0;
+        // input
+        activations.push(vec![0.0; input_size]);
+        gradients.push(vec![0.0; input_size]);
 
-            for layer in self.layers.iter_mut().rev() {
-                grad = layer.backward(grad);
-            }
+        // 各 layer の出力
+        for layer in &self.layers {
+            let size = layer.output_size();
+            activations.push(vec![0.0; size]);
+            gradients.push(vec![0.0; size]);
         }
 
-        self.step(lr, batch_size);
+        ModelBuffers {
+            activations,
+            gradients,
+        }
     }
 }
 
