@@ -49,16 +49,30 @@ fn main() {
 
     /* ================= 学習 ================= */
 
-    for epoch in 0..train_epoch {
-        let mut dataset = train_bow_dataset_maker();
+    {
+        let mut grad_x_buf = vec![];
+        let mut grad_y_buf = model.new_output(&grad_x_buf);
+        let mut out_buf = grad_y_buf.clone();
 
-        let loader = DataLoader::new(&mut dataset, batch_size, epoch as u64);
+        for epoch in 0..train_epoch {
+            let mut dataset = train_bow_dataset_maker();
 
-        bar.set_message(format!("Epoch {}", epoch + 1));
+            let loader = DataLoader::new(&mut dataset, batch_size, epoch as u64);
 
-        for (x, y) in loader {
-            model.train_batch(&x, &y, &mut loss::crossentropy::CrossEntropyLoss, 0.01);
-            bar.inc(1);
+            bar.set_message(format!("Epoch {}", epoch + 1));
+
+            for (x, y) in loader {
+                model.train_batch(
+                    &x,
+                    &y,
+                    &mut loss::crossentropy::CrossEntropyLoss,
+                    0.01,
+                    &mut out_buf,
+                    &mut grad_x_buf,
+                    &mut grad_y_buf,
+                );
+                bar.inc(1);
+            }
         }
     }
 

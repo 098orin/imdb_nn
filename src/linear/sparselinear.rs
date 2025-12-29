@@ -11,12 +11,11 @@ pub struct SparseLinear {
 
 impl SparseLinear {
     pub fn new(in_size: usize, out_size: usize) -> Self {
+        let w_size = in_size * out_size;
         Self {
-            w: (0..in_size * out_size)
-                .map(|_| super::init_weight())
-                .collect(),
+            w: (0..w_size).map(|_| super::init_weight(w_size)).collect(),
             b: vec![0.0; out_size],
-            grad_w: vec![0.0; in_size * out_size],
+            grad_w: vec![0.0; w_size],
             grad_b: vec![0.0; out_size],
             in_size,
             out_size,
@@ -64,11 +63,12 @@ impl Module for SparseLinear {
 
         for i in 0..self.w.len() {
             self.w[i] -= scale * self.grad_w[i];
-            self.grad_w[i] = 0.0;
         }
+        self.grad_w.fill(0.0);
+
         for i in 0..self.b.len() {
             self.b[i] -= scale * self.grad_b[i];
-            self.grad_b[i] = 0.0;
         }
+        self.grad_b.fill(0.0);
     }
 }

@@ -23,6 +23,8 @@ pub trait Module {
     type Output: Buffer;
 
     fn forward(&mut self, input: &Self::Input, output: &mut Self::Output);
+    /// [Chain] から呼び出される場合、必要な限り grad_input は初期化されます。
+    /// Trait内での初期化は不要です。
     fn backward(
         &mut self,
         grad_output: &Self::Output,
@@ -131,21 +133,21 @@ where
         ys: &[usize],
         loss: &mut L,
         lr: f32,
+        out_buf: &mut <Self as Module>::Output,
+        grad_x_buf: &mut <Self as Module>::Input,
+        grad_y_buf: &mut <Self as Module>::Output,
     ) {
         let batch_size = xs.len();
 
         for (x, &y) in xs.iter().zip(ys.iter()) {
             // forward
-            let mut y_pred = self.new_output(x);
-            self.forward(x, &mut y_pred);
+            self.forward(x, out_buf);
 
             // loss backward
-            let mut grad_y = y_pred.zeros_like();
-            loss.backward(&y_pred, y, &mut grad_y);
+            loss.backward(&out_buf, y, grad_y_buf);
 
             // backward
-            let mut grad_x = x.zeros_like();
-            self.backward(&grad_y, x, &mut grad_x);
+            self.backward(&grad_y_buf, x, grad_x_buf);
         }
 
         self.step(lr, batch_size);
